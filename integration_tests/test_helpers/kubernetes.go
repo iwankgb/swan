@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"github.com/intelsdi-x/swan/pkg/executor"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"
-	v1 "k8s.io/client-go/pkg/api/v1"
+	clientv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 )
 
@@ -92,23 +94,23 @@ func (k *KubeClient) kubectlWait(filterFunction func() bool, timeout time.Durati
 }
 
 // GetPods gathers running and not running pods from K8s cluster.
-func (k *KubeClient) GetPods() ([]*v1.Pod, []*v1.Pod, error) {
+func (k *KubeClient) GetPods() ([]*clientv1.Pod, []*clientv1.Pod, error) {
 	pods, err := k.Clientset.Pods(k.namespace).List(v1.ListOptions{})
 	if err != nil {
 		return nil, nil, err
 	}
-	var runningPods []*v1.Pod
-	var notRunningPods []*v1.Pod
+	var runningPods []*clientv1.Pod
+	var notRunningPods []*clientv1.Pod
 
 	for _, pod := range pods.Items {
 		switch pod.Status.Phase {
-		case v1.PodRunning:
+		case clientv1.PodRunning:
 			runningPods = append(runningPods, &pod)
-		case v1.PodPending:
-		case v1.PodSucceeded:
-		case v1.PodFailed:
+		case clientv1.PodPending:
+		case clientv1.PodSucceeded:
+		case clientv1.PodFailed:
 			notRunningPods = append(notRunningPods, &pod)
-		case v1.PodUnknown:
+		case clientv1.PodUnknown:
 			return nil, nil, fmt.Errorf("at least one of pods is in Unknown state")
 		}
 	}
@@ -116,13 +118,13 @@ func (k *KubeClient) GetPods() ([]*v1.Pod, []*v1.Pod, error) {
 	return runningPods, notRunningPods, nil
 }
 
-func (k *KubeClient) getReadyNodes() ([]*v1.Node, error) {
+func (k *KubeClient) getReadyNodes() ([]*clientv1.Node, error) {
 	nodes, err := k.Clientset.Nodes().List(v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	var readyNodes []*v1.Node
+	var readyNodes []*clientv1.Node
 	for _, node := range nodes.Items {
 		for _, condition := range node.Status.Conditions {
 			if condition.Type == "Ready" && condition.Status != "True" {
@@ -141,7 +143,7 @@ func (k *KubeClient) DeletePod(podName string) error {
 }
 
 // Node assume just one node a return it. Note panics if unavailable (this is just test helper!).
-func (k *KubeClient) node() *v1.Node {
+func (k *KubeClient) node() *clientv1.Node {
 	nodes, err := k.Clientset.Nodes().List(v1.ListOptions{})
 	if err != nil {
 		panic(err)
@@ -166,14 +168,14 @@ func (k *KubeClient) TaintNode() {
 	k.updateTaints(node, taintsInJSON)
 }
 
-func (k *KubeClient) updateTaints(node *v1.Node, taints []byte) {
-	patchSet := v1.Node{}
+func (k *KubeClient) updateTaints(node *clientv1.Node, taints []byte) {
+	patchSet := clientv1.Node{}
 	patchSet.Annotations = map[string]string{api.TaintsAnnotationKey: string(taints)}
 	patchSetInJSON, err := json.Marshal(patchSet)
 	if err != nil {
 		panic(err)
 	}
-	_, err = k.Clientset.Nodes().Patch(node.Name, api.MergePatchType, patchSetInJSON)
+	_, err = k.Clientset.Nodes().Patch(node.Name, types.MergePatchType, patchSetInJSON)
 	if err != nil {
 		panic(err)
 	}
