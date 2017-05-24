@@ -19,7 +19,11 @@ import (
 	"fmt"
 	"time"
 
+	"io/ioutil"
+	"net/http"
+
 	"github.com/intelsdi-x/swan/pkg/executor"
+	cluster "github.com/intelsdi-x/swan/pkg/kubernetes"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -62,7 +66,24 @@ func (k *KubeClient) WaitForCluster(timeout time.Duration) error {
 		}
 		return len(nodes) > 0
 	}
-	return k.kubectlWait(readyNodesFilterFunc, timeout)
+	readyAPIServer := func() bool {
+		resp, err := http.Get(fmt.Sprintf("http://%s:8080/healthz", cluster.KubernetesMasterFlag.Value()))
+		if err != nil {
+			return false
+		}
+		if resp.StatusCode != 200 {
+			return false
+		}
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return false
+		}
+		if string(body) != "ok" {
+			return false
+		}
+		return true
+	}
+	return k.kubectlWait(func() bool { return readyNodesFilterFunc() && readyAPIServer() }, timeout)
 }
 
 // WaitForPod is waiting for all pods are up and running.
