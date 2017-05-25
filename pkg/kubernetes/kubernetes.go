@@ -322,7 +322,8 @@ func (m k8s) getKubeletCommand() kubeCommand {
 			fmt.Sprintf(" --port=%d", m.config.KubeletPort),
 			fmt.Sprintf(" --read-only-port=0"),
 			fmt.Sprintf(" --api-servers=%s", m.config.GetKubeAPIAddress()),
-			"--enable-cri=false",
+			" --loglevel=0",
+			" --cgroup-driver systemd",
 			fmt.Sprintf(" %s", m.config.KubeletArgs),
 		), m.config.KubeletPort}
 }
@@ -350,7 +351,6 @@ func (m k8s) waitForReadyNode(apiServerAddress string) error {
 			return nil
 		}
 
-		time.Sleep(waitForReadyNodeBackOffPeriod)
 	}
 
 	return errors.New("kubelet could not register in time")

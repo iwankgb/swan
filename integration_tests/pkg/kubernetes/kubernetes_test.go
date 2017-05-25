@@ -41,6 +41,7 @@ func TestLocalKubernetesPodExecution(t *testing.T) {
 
 		Convey("We are able to launch kubernetes cluster on one node", func() {
 			config := kubernetes.DefaultConfig()
+			config.RetryCount = 10
 
 			kubernetesAddress := fmt.Sprintf("http://127.0.0.1:%d", config.KubeAPIPort)
 
@@ -67,6 +68,7 @@ func TestLocalKubernetesPodExecution(t *testing.T) {
 				// NAME            STATUS    AGE
 				// <hostname>      Ready     <x>h
 
+				fmt.Println(string(output))
 				re, err := regexp.Compile(fmt.Sprintf("%s.*?Ready", host))
 				So(err, ShouldBeNil)
 
